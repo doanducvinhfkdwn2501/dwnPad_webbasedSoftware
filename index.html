@@ -3,20 +3,38 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Arduino Key Changer</title>
+  <title>Arduino Key Changer – 2 Switches + SOCD</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
-    <h1>🖥️ Arduino Key Changer</h1>
+    <h1>🖥️ Arduino Key Changer – 2 Switches + SOCD</h1>
     <div class="controls">
       <button id="connectBtn">🔌 Connect</button>
       <span id="status">Disconnected</span>
+      <label class="socd-toggle">
+        <input type="checkbox" id="socdCheckbox" disabled />
+        <span class="slider"></span>
+        <span class="label-text">SOCD (last‑input)</span>
+      </label>
     </div>
-    <p class="info">Click any key below to set it as the output of your physical switch.</p>
+    <p class="info">Select a switch, click a key to assign it. SOCD toggles last‑input priority.</p>
   </header>
 
   <main>
+    <!-- Switch selector -->
+    <div id="switchSelector">
+      <button class="switch-btn active" data-switch="1">Switch 1 (pin 3)</button>
+      <button class="switch-btn" data-switch="2">Switch 2 (pin 2)</button>
+    </div>
+
+    <!-- Current keys display -->
+    <div id="currentKeysDisplay">
+      <span>Switch 1: <strong id="keyLabel1">No device</strong></span>
+      <span>Switch 2: <strong id="keyLabel2">No device</strong></span>
+    </div>
+
+    <!-- Full keyboard layout -->
     <div id="keyboard">
       <!-- Row: Function keys -->
       <div class="row">
@@ -59,7 +77,7 @@
         <div class="key special" data-key="BACK" style="width:80px;">Back</div>
       </div>
 
-      <!-- Row: Shifted symbols (separate keys) -->
+      <!-- Row: Shifted symbols -->
       <div class="row symbols-row">
         <div class="key" data-key="!">!</div>
         <div class="key" data-key="@">@</div>
@@ -77,19 +95,19 @@
         <div class="key special" data-key="|">|</div>
       </div>
 
-      <!-- Row: QWERTY (lowercase data-key) -->
+      <!-- Row: QWERTY (lowercase) -->
       <div class="row">
         <div class="key special" data-key="TAB" style="width:70px;">Tab</div>
-        <div class="key" data-key="q">Q</div>
-        <div class="key" data-key="w">W</div>
-        <div class="key" data-key="e">E</div>
-        <div class="key" data-key="r">R</div>
-        <div class="key" data-key="t">T</div>
-        <div class="key" data-key="y">Y</div>
-        <div class="key" data-key="u">U</div>
-        <div class="key" data-key="i">I</div>
-        <div class="key" data-key="o">O</div>
-        <div class="key" data-key="p">P</div>
+        <div class="key" data-key="q">q</div>
+        <div class="key" data-key="w">w</div>
+        <div class="key" data-key="e">e</div>
+        <div class="key" data-key="r">r</div>
+        <div class="key" data-key="t">t</div>
+        <div class="key" data-key="y">y</div>
+        <div class="key" data-key="u">u</div>
+        <div class="key" data-key="i">i</div>
+        <div class="key" data-key="o">o</div>
+        <div class="key" data-key="p">p</div>
         <div class="key" data-key="[">[</div>
         <div class="key" data-key="]">]</div>
         <div class="key special" data-key="\" style="width:60px;">\</div>
@@ -98,15 +116,15 @@
       <!-- Row: ASDF (lowercase) -->
       <div class="row">
         <div class="key special" data-key="CAPS" style="width:85px;">Caps</div>
-        <div class="key" data-key="a">A</div>
-        <div class="key" data-key="s">S</div>
-        <div class="key" data-key="d">D</div>
-        <div class="key" data-key="f">F</div>
-        <div class="key" data-key="g">G</div>
-        <div class="key" data-key="h">H</div>
-        <div class="key" data-key="j">J</div>
-        <div class="key" data-key="k">K</div>
-        <div class="key" data-key="l">L</div>
+        <div class="key" data-key="a">a</div>
+        <div class="key" data-key="s">s</div>
+        <div class="key" data-key="d">d</div>
+        <div class="key" data-key="f">f</div>
+        <div class="key" data-key="g">g</div>
+        <div class="key" data-key="h">h</div>
+        <div class="key" data-key="j">j</div>
+        <div class="key" data-key="k">k</div>
+        <div class="key" data-key="l">l</div>
         <div class="key" data-key=";">;</div>
         <div class="key" data-key="'">'</div>
         <div class="key special" data-key="ENTER" style="width:90px;">Enter</div>
@@ -115,20 +133,20 @@
       <!-- Row: ZXCV (lowercase) -->
       <div class="row">
         <div class="key special" data-key="LSHIFT" style="width:110px;">Shift</div>
-        <div class="key" data-key="z">Z</div>
-        <div class="key" data-key="x">X</div>
-        <div class="key" data-key="c">C</div>
-        <div class="key" data-key="v">V</div>
-        <div class="key" data-key="b">B</div>
-        <div class="key" data-key="n">N</div>
-        <div class="key" data-key="m">M</div>
+        <div class="key" data-key="z">z</div>
+        <div class="key" data-key="x">x</div>
+        <div class="key" data-key="c">c</div>
+        <div class="key" data-key="v">v</div>
+        <div class="key" data-key="b">b</div>
+        <div class="key" data-key="n">n</div>
+        <div class="key" data-key="m">m</div>
         <div class="key" data-key=",">,</div>
         <div class="key" data-key=".">.</div>
         <div class="key" data-key="/">/</div>
         <div class="key special" data-key="RSHIFT" style="width:110px;">Shift</div>
       </div>
 
-      <!-- Row: Punctuation symbols -->
+      <!-- Row: Punctuation -->
       <div class="row symbols-row">
         <div class="key" data-key=":">:</div>
         <div class="key" data-key="&quot;">"</div>
@@ -167,10 +185,6 @@
         <div class="key special" data-key="DOWN" style="width:60px;">↓</div>
         <div class="key special" data-key="RIGHT" style="width:60px;">→</div>
       </div>
-    </div>
-
-    <div id="currentKeyDisplay">
-      <span>Current key: </span><strong id="currentKeyLabel">No device</strong>
     </div>
   </main>
 

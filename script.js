@@ -7,11 +7,30 @@ let isDisconnecting = false;
 
 const connectBtn = document.getElementById('connectBtn');
 const statusSpan = document.getElementById('status');
-const keyLabel = document.getElementById('currentKeyLabel');
+const socdCheckbox = document.getElementById('socdCheckbox');
 
-// ============ LocalStorage key persistence ============
-const STORAGE_KEY = 'arduinoKey';
-let currentKeyName = localStorage.getItem(STORAGE_KEY) || null;
+// ============ Switch selection ============
+let activeSwitch = 1;
+const switchBtns = document.querySelectorAll('.switch-btn');
+switchBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    switchBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeSwitch = parseInt(btn.dataset.switch);
+    const key = activeSwitch === 1 ? currentKeyName1 : currentKeyName2;
+    if (key) highlightKey(key);
+    else clearKeySelection();
+  });
+});
+
+// ============ Key storage (two switches) ============
+const STORAGE_KEY1 = 'arduinoKey1';
+const STORAGE_KEY2 = 'arduinoKey2';
+let currentKeyName1 = localStorage.getItem(STORAGE_KEY1) || null;
+let currentKeyName2 = localStorage.getItem(STORAGE_KEY2) || null;
+
+const keyLabel1 = document.getElementById('keyLabel1');
+const keyLabel2 = document.getElementById('keyLabel2');
 
 // ---------- UI update helpers ----------
 function clearKeySelection() {
@@ -25,14 +44,27 @@ function highlightKey(keyName) {
   });
 }
 
-function updateUIWithKey(keyName, isPending = false) {
+function updateUIForSwitch(switchNum, keyName, isPending = false) {
+  const label = switchNum === 1 ? keyLabel1 : keyLabel2;
   if (keyName) {
-    keyLabel.textContent = isPending ? keyName + ' (pending)' : keyName;
-    highlightKey(keyName);
+    label.textContent = isPending ? keyName + ' (pending)' : keyName;
   } else {
-    keyLabel.textContent = 'No device';
-    clearKeySelection();
+    label.textContent = 'No device';
   }
+  if (switchNum === activeSwitch) {
+    if (keyName) highlightKey(keyName);
+    else clearKeySelection();
+  }
+}
+
+function updateAllUI() {
+  updateUIForSwitch(1, currentKeyName1, false);
+  updateUIForSwitch(2, currentKeyName2, false);
+}
+
+// ---------- SOCD ----------
+function updateSOCDUI(state) {
+  socdCheckbox.checked = state === true;
 }
 
 // ============ Handle unexpected disconnection ============
@@ -45,7 +77,14 @@ function handleDisconnect() {
   connectBtn.classList.remove('connected');
   statusSpan.textContent = 'Disconnected (unplugged)';
   statusSpan.className = '';
-  updateUIWithKey(null);
+  socdCheckbox.disabled = true;
+  currentKeyName1 = null;
+  currentKeyName2 = null;
+  localStorage.removeItem(STORAGE_KEY1);
+  localStorage.removeItem(STORAGE_KEY2);
+  updateAllUI();
+  clearKeySelection();
+  updateSOCDUI(false);
   if (reader) {
     try { reader.releaseLock(); } catch(e) {}
     reader = null;
@@ -80,10 +119,25 @@ async function readLoop() {
       for (let line of lines) {
         line = line.trim();
         if (line.length === 0) continue;
-        // This line is the key name from Arduino (reply to GETKEY)
-        currentKeyName = line;
-        localStorage.setItem(STORAGE_KEY, line);
-        updateUIWithKey(line, false);
+        // Parse prefixed responses
+        if (line.startsWith('KEY1:')) {
+          const val = line.substring(5);
+          currentKeyName1 = val;
+          localStorage.setItem(STORAGE_KEY1, val);
+          updateUIForSwitch(1, val, false);
+        } else if (line.startsWith('KEY2:')) {
+          const val = line.substring(5);
+          currentKeyName2 = val;
+          localStorage.setItem(STORAGE_KEY2, val);
+          updateUIForSwitch(2, val, false);
+        } else if (line.startsWith('SOCD:')) {
+          const val = line.substring(5);
+          const isOn = (val === '1' || val.toLowerCase() === 'on');
+          updateSOCDUI(isOn);
+        } else {
+          // unknown – ignore
+          console.log('Unknown response:', line);
+        }
       }
     }
   } catch (err) {
@@ -102,7 +156,6 @@ connectBtn.addEventListener('click', async () => {
     return;
   }
 
-  // Connect
   try {
     port = await navigator.serial.requestPort();
     await port.open({ baudRate: 9600 });
@@ -112,6 +165,7 @@ connectBtn.addEventListener('click', async () => {
     statusSpan.textContent = 'Connected';
     statusSpan.className = 'online';
     connectBtn.blur();
+    socdCheckbox.disabled = false;
 
     port.addEventListener('disconnect', handleDisconnect);
 
@@ -120,9 +174,10 @@ connectBtn.addEventListener('click', async () => {
     // Start reading loop
     readLoop();
 
-    // Ask Arduino for the current key
-    await sendRawCommand('GETKEY');
-    // The reply will come via the read loop and update UI.
+    // Request all three values (their responses will update the UI)
+    await sendRawCommand('GET1');
+    await sendRawCommand('GET2');
+    await sendRawCommand('GETSOCD');
   } catch (err) {
     console.error(err);
     alert('Could not connect: ' + err.message);
@@ -155,7 +210,14 @@ async function disconnect() {
   connectBtn.classList.remove('connected');
   statusSpan.textContent = 'Disconnected';
   statusSpan.className = '';
-  updateUIWithKey(null);
+  socdCheckbox.disabled = true;
+  currentKeyName1 = null;
+  currentKeyName2 = null;
+  localStorage.removeItem(STORAGE_KEY1);
+  localStorage.removeItem(STORAGE_KEY2);
+  updateAllUI();
+  clearKeySelection();
+  updateSOCDUI(false);
 }
 
 // ============ Sending commands ============
@@ -173,17 +235,39 @@ async function sendRawCommand(cmd) {
   }
 }
 
-async function sendKey(keyName) {
+async function setKeyForSwitch(switchNum, keyName) {
   if (!isConnected || !writer) {
     alert('Please connect to the Arduino first.');
     return;
   }
-  const command = 'KEY:' + keyName + '\n';
+  const cmd = 'SET' + switchNum + ':' + keyName + '\n';
   try {
-    await writer.write(new TextEncoder().encode(command));
-    currentKeyName = keyName;
-    localStorage.setItem(STORAGE_KEY, keyName);
-    updateUIWithKey(keyName, false);
+    await writer.write(new TextEncoder().encode(cmd));
+    if (switchNum === 1) {
+      currentKeyName1 = keyName;
+      localStorage.setItem(STORAGE_KEY1, keyName);
+      updateUIForSwitch(1, keyName, false);
+    } else {
+      currentKeyName2 = keyName;
+      localStorage.setItem(STORAGE_KEY2, keyName);
+      updateUIForSwitch(2, keyName, false);
+    }
+  } catch (err) {
+    console.error('Write error:', err);
+    handleDisconnect();
+    alert('Lost connection to Arduino.');
+  }
+}
+
+async function setSOCD(state) {
+  if (!isConnected || !writer) {
+    alert('Please connect to the Arduino first.');
+    return;
+  }
+  const cmd = 'SOCD:' + (state ? '1' : '0') + '\n';
+  try {
+    await writer.write(new TextEncoder().encode(cmd));
+    updateSOCDUI(state);
   } catch (err) {
     console.error('Write error:', err);
     handleDisconnect();
@@ -196,16 +280,33 @@ document.querySelectorAll('.key[data-key]').forEach(el => {
   el.addEventListener('click', () => {
     const key = el.dataset.key;
     if (isConnected) {
-      sendKey(key);
+      setKeyForSwitch(activeSwitch, key);
     } else {
-      currentKeyName = key;
-      localStorage.setItem(STORAGE_KEY, key);
-      updateUIWithKey(key, true);
+      if (activeSwitch === 1) {
+        currentKeyName1 = key;
+        localStorage.setItem(STORAGE_KEY1, key);
+        updateUIForSwitch(1, key, true);
+      } else {
+        currentKeyName2 = key;
+        localStorage.setItem(STORAGE_KEY2, key);
+        updateUIForSwitch(2, key, true);
+      }
     }
   });
 });
 
+// ============ SOCD checkbox event ============
+socdCheckbox.addEventListener('change', () => {
+  if (isConnected) {
+    setSOCD(socdCheckbox.checked);
+  } else {
+    // Store intention but don't send
+    localStorage.setItem('socdState', socdCheckbox.checked ? '1' : '0');
+  }
+});
+
 // ============ Initialisation ============
-// Start with no device, no selection.
-updateUIWithKey(null);
-console.log('WebSerial Key Changer ready.');
+updateAllUI();
+clearKeySelection();
+socdCheckbox.disabled = true;
+console.log('WebSerial Key Changer (2 switches + SOCD) ready.');
