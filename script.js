@@ -8,29 +8,36 @@ let isDisconnecting = false;
 const connectBtn = document.getElementById('connectBtn');
 const statusSpan = document.getElementById('status');
 const socdCheckbox = document.getElementById('socdCheckbox');
+const debounceSelect = document.getElementById('debounceSelect');
 
 // ============ Switch selection ============
-let activeSwitch = 1;
+let activeSwitch = null;
 const switchBtns = document.querySelectorAll('.switch-btn');
 switchBtns.forEach(btn => {
   btn.addEventListener('click', () => {
     switchBtns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    activeSwitch = parseInt(btn.dataset.switch);
-    const key = activeSwitch === 1 ? currentKeyName1 : currentKeyName2;
-    if (key) highlightKey(key);
-    else clearKeySelection();
+    const sw = parseInt(btn.dataset.switch);
+    activeSwitch = sw;
+    if (isConnected) {
+      sendRawCommand('GET' + sw);
+    } else {
+      clearKeySelection();
+    }
   });
 });
 
-// ============ Key storage (two switches) ============
-const STORAGE_KEY1 = 'arduinoKey1';
-const STORAGE_KEY2 = 'arduinoKey2';
-let currentKeyName1 = localStorage.getItem(STORAGE_KEY1) || null;
-let currentKeyName2 = localStorage.getItem(STORAGE_KEY2) || null;
+// ============ Key storage (4 switches) ============
+const STORAGE_KEYS = ['arduinoKey1', 'arduinoKey2', 'arduinoKey3', 'arduinoKey4'];
+let currentKeyNames = [null, null, null, null];
 
-const keyLabel1 = document.getElementById('keyLabel1');
-const keyLabel2 = document.getElementById('keyLabel2');
+function getCurrentKey(switchNum) {
+  return currentKeyNames[switchNum - 1] || null;
+}
+function setCurrentKey(switchNum, keyName) {
+  currentKeyNames[switchNum - 1] = keyName;
+  localStorage.setItem(STORAGE_KEYS[switchNum - 1], keyName);
+}
 
 // ---------- UI update helpers ----------
 function clearKeySelection() {
@@ -44,13 +51,8 @@ function highlightKey(keyName) {
   });
 }
 
-function updateUIForSwitch(switchNum, keyName, isPending = false) {
-  const label = switchNum === 1 ? keyLabel1 : keyLabel2;
-  if (keyName) {
-    label.textContent = isPending ? keyName + ' (pending)' : keyName;
-  } else {
-    label.textContent = 'No device';
-  }
+function updateUIForSwitch(switchNum, keyName) {
+  // Only update the keyboard highlight if this switch is active
   if (switchNum === activeSwitch) {
     if (keyName) highlightKey(keyName);
     else clearKeySelection();
@@ -58,13 +60,32 @@ function updateUIForSwitch(switchNum, keyName, isPending = false) {
 }
 
 function updateAllUI() {
-  updateUIForSwitch(1, currentKeyName1, false);
-  updateUIForSwitch(2, currentKeyName2, false);
+  // Just clear highlights if no switch is active
+  if (activeSwitch === null) {
+    clearKeySelection();
+  } else {
+    const key = getCurrentKey(activeSwitch);
+    if (key) highlightKey(key);
+    else clearKeySelection();
+  }
 }
 
 // ---------- SOCD ----------
 function updateSOCDUI(state) {
   socdCheckbox.checked = state === true;
+}
+
+// ---------- Debounce ----------
+function updateDebounceUI(value) {
+  const validValues = ['15', '30', '50'];
+  const valStr = String(value);
+  if (validValues.includes(valStr)) {
+    debounceSelect.value = valStr;
+  } else {
+    console.warn('Unknown debounce value from Arduino:', value, '– defaulting to 50');
+    debounceSelect.value = '50';
+  }
+  debounceSelect.disabled = false;
 }
 
 // ============ Handle unexpected disconnection ============
@@ -78,12 +99,14 @@ function handleDisconnect() {
   statusSpan.textContent = 'Disconnected (unplugged)';
   statusSpan.className = '';
   socdCheckbox.disabled = true;
-  currentKeyName1 = null;
-  currentKeyName2 = null;
-  localStorage.removeItem(STORAGE_KEY1);
-  localStorage.removeItem(STORAGE_KEY2);
-  updateAllUI();
+  debounceSelect.disabled = true;
+  debounceSelect.value = '';
+  for (let i = 0; i < 4; i++) {
+    currentKeyNames[i] = null;
+  }
   clearKeySelection();
+  switchBtns.forEach(b => b.classList.remove('active'));
+  activeSwitch = null;
   updateSOCDUI(false);
   if (reader) {
     try { reader.releaseLock(); } catch(e) {}
@@ -119,23 +142,30 @@ async function readLoop() {
       for (let line of lines) {
         line = line.trim();
         if (line.length === 0) continue;
-        // Parse prefixed responses
         if (line.startsWith('KEY1:')) {
           const val = line.substring(5);
-          currentKeyName1 = val;
-          localStorage.setItem(STORAGE_KEY1, val);
-          updateUIForSwitch(1, val, false);
+          setCurrentKey(1, val);
+          updateUIForSwitch(1, val);
         } else if (line.startsWith('KEY2:')) {
           const val = line.substring(5);
-          currentKeyName2 = val;
-          localStorage.setItem(STORAGE_KEY2, val);
-          updateUIForSwitch(2, val, false);
+          setCurrentKey(2, val);
+          updateUIForSwitch(2, val);
+        } else if (line.startsWith('KEY3:')) {
+          const val = line.substring(5);
+          setCurrentKey(3, val);
+          updateUIForSwitch(3, val);
+        } else if (line.startsWith('KEY4:')) {
+          const val = line.substring(5);
+          setCurrentKey(4, val);
+          updateUIForSwitch(4, val);
         } else if (line.startsWith('SOCD:')) {
           const val = line.substring(5);
           const isOn = (val === '1' || val.toLowerCase() === 'on');
           updateSOCDUI(isOn);
+        } else if (line.startsWith('DEBOUNCE:')) {
+          const val = line.substring(9);
+          updateDebounceUI(val);
         } else {
-          // unknown – ignore
           console.log('Unknown response:', line);
         }
       }
@@ -166,6 +196,8 @@ connectBtn.addEventListener('click', async () => {
     statusSpan.className = 'online';
     connectBtn.blur();
     socdCheckbox.disabled = false;
+    debounceSelect.disabled = true;
+    debounceSelect.value = '';
 
     port.addEventListener('disconnect', handleDisconnect);
 
@@ -174,10 +206,9 @@ connectBtn.addEventListener('click', async () => {
     // Start reading loop
     readLoop();
 
-    // Request all three values (their responses will update the UI)
-    await sendRawCommand('GET1');
-    await sendRawCommand('GET2');
+    // Fetch global settings (SOCD and debounce) – no keys yet
     await sendRawCommand('GETSOCD');
+    await sendRawCommand('GETDEBOUNCE');
   } catch (err) {
     console.error(err);
     alert('Could not connect: ' + err.message);
@@ -211,12 +242,14 @@ async function disconnect() {
   statusSpan.textContent = 'Disconnected';
   statusSpan.className = '';
   socdCheckbox.disabled = true;
-  currentKeyName1 = null;
-  currentKeyName2 = null;
-  localStorage.removeItem(STORAGE_KEY1);
-  localStorage.removeItem(STORAGE_KEY2);
-  updateAllUI();
+  debounceSelect.disabled = true;
+  debounceSelect.value = '';
+  for (let i = 0; i < 4; i++) {
+    currentKeyNames[i] = null;
+  }
   clearKeySelection();
+  switchBtns.forEach(b => b.classList.remove('active'));
+  activeSwitch = null;
   updateSOCDUI(false);
 }
 
@@ -243,15 +276,8 @@ async function setKeyForSwitch(switchNum, keyName) {
   const cmd = 'SET' + switchNum + ':' + keyName + '\n';
   try {
     await writer.write(new TextEncoder().encode(cmd));
-    if (switchNum === 1) {
-      currentKeyName1 = keyName;
-      localStorage.setItem(STORAGE_KEY1, keyName);
-      updateUIForSwitch(1, keyName, false);
-    } else {
-      currentKeyName2 = keyName;
-      localStorage.setItem(STORAGE_KEY2, keyName);
-      updateUIForSwitch(2, keyName, false);
-    }
+    setCurrentKey(switchNum, keyName);
+    updateUIForSwitch(switchNum, keyName);
   } catch (err) {
     console.error('Write error:', err);
     handleDisconnect();
@@ -275,22 +301,38 @@ async function setSOCD(state) {
   }
 }
 
+async function setDebounce(value) {
+  if (!isConnected || !writer) {
+    alert('Please connect to the Arduino first.');
+    return;
+  }
+  const cmd = 'DEBOUNCE:' + value + '\n';
+  try {
+    await writer.write(new TextEncoder().encode(cmd));
+  } catch (err) {
+    console.error('Write error:', err);
+    handleDisconnect();
+    alert('Lost connection to Arduino.');
+  }
+}
+
 // ============ Keyboard UI ============
 document.querySelectorAll('.key[data-key]').forEach(el => {
   el.addEventListener('click', () => {
     const key = el.dataset.key;
     if (isConnected) {
+      if (activeSwitch === null) {
+        alert('Please select a switch first (click one of the square buttons).');
+        return;
+      }
       setKeyForSwitch(activeSwitch, key);
     } else {
-      if (activeSwitch === 1) {
-        currentKeyName1 = key;
-        localStorage.setItem(STORAGE_KEY1, key);
-        updateUIForSwitch(1, key, true);
-      } else {
-        currentKeyName2 = key;
-        localStorage.setItem(STORAGE_KEY2, key);
-        updateUIForSwitch(2, key, true);
+      if (activeSwitch === null) {
+        alert('Please select a switch first (click one of the square buttons).');
+        return;
       }
+      setCurrentKey(activeSwitch, key);
+      updateUIForSwitch(activeSwitch, key);
     }
   });
 });
@@ -300,13 +342,26 @@ socdCheckbox.addEventListener('change', () => {
   if (isConnected) {
     setSOCD(socdCheckbox.checked);
   } else {
-    // Store intention but don't send
     localStorage.setItem('socdState', socdCheckbox.checked ? '1' : '0');
   }
 });
 
+// ============ Debounce dropdown event ============
+debounceSelect.addEventListener('change', () => {
+  const val = debounceSelect.value;
+  if (val === '') return;
+  if (isConnected) {
+    setDebounce(val);
+  } else {
+    localStorage.setItem('debounceValue', val);
+  }
+});
+
 // ============ Initialisation ============
-updateAllUI();
 clearKeySelection();
+switchBtns.forEach(b => b.classList.remove('active'));
+activeSwitch = null;
 socdCheckbox.disabled = true;
-console.log('WebSerial Key Changer (2 switches + SOCD) ready.');
+debounceSelect.disabled = true;
+debounceSelect.value = '';
+console.log('WebSerial Key Changer (4 switches + SOCD + debounce) ready.');

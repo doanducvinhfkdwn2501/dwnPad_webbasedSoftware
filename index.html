@@ -3,38 +3,45 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Arduino Key Changer – 2 Switches + SOCD</title>
+  <title>dwnPad Key Changer</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
-    <h1> Arduino Key Changer – 2 Switches + SOCD</h1>
+    <h1>dwnPad Key Changers</h1>
     <div class="controls">
-      <button id="connectBtn">🔌 Connect</button>
+      <button id="connectBtn"> CONNECT</button>
       <span id="status">Disconnected</span>
       <label class="socd-toggle">
         <input type="checkbox" id="socdCheckbox" disabled />
         <span class="slider"></span>
-        <span class="label-text">SOCD (last‑input)</span>
+        <span class="label-text">SOCD (last‑input) for Pin 2 & 3</span>
       </label>
+      <div class="debounce-select">
+        <label for="debounceSelect">Debounce:</label>
+        <select id="debounceSelect" disabled>
+          <option value="">Loading…</option>
+          <option value="15">1.5 ms</option>
+          <option value="30">3 ms</option>
+          <option value="50">5 ms</option>
+        </select>
+      </div>
     </div>
-    <p class="info">Select a switch, click a key to assign it. SOCD toggles last‑input priority.</p>
+    <p class="info">Click a switch (square) to load its key from EEPROM, then click a key to assign it.</p>
   </header>
 
   <main>
-    <!-- Switch selector -->
+    <!-- Switch selector – diamond layout -->
     <div id="switchSelector">
-      <button class="switch-btn active" data-switch="1">Switch 1 (pin 3)</button>
-      <button class="switch-btn" data-switch="2">Switch 2 (pin 2)</button>
+      <div class="switch-grid">
+        <button class="switch-btn" data-switch="3" style="grid-area: top;">Pin4</button>
+        <button class="switch-btn" data-switch="2" style="grid-area: left;">Pin2</button>
+        <button class="switch-btn" data-switch="4" style="grid-area: middle;">Pin5</button>
+        <button class="switch-btn" data-switch="1" style="grid-area: right;">Pin3</button>
+      </div>
     </div>
 
-    <!-- Current keys display -->
-    <div id="currentKeysDisplay">
-      <span>Switch 1: <strong id="keyLabel1">No device</strong></span>
-      <span>Switch 2: <strong id="keyLabel2">No device</strong></span>
-    </div>
-
-    <!-- Full keyboard layout -->
+    <!-- Full keyboard layout (unchanged) -->
     <div id="keyboard">
       <!-- Row: Function keys -->
       <div class="row">
