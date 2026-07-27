@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>dwnPad Key Changer</title>
+  <title>dwnPad Key Changer – 4 Switches + SOCD + Debounce + Sentence Mode</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
-    <h1>dwnPad Key Changer</h1>
+    <h1>dwnPad Key Changer – 4 Switches</h1>
     <div class="controls">
-      <button id="connectBtn">🔌 Connect</button>
+      <button id="connectBtn">Connect</button>
       <span id="status">Disconnected</span>
       <label class="socd-toggle">
         <input type="checkbox" id="socdCheckbox" disabled />
         <span class="slider"></span>
-        <span class="label-text">SOCD (last‑input) for Pin 2 & 3</span>
+        <span class="label-text">SOCD (last-input) for pin 2 and pin 3</span>
       </label>
       <div class="debounce-select">
         <label for="debounceSelect">Debounce:</label>
@@ -28,7 +28,7 @@
         </select>
       </div>
     </div>
-    <p class="info">Click a switch (square) to load its key from EEPROM, then click a key to assign it.</p>
+    <p class="info">Click a switch (square) to load its settings. Toggle sentence mode to type a paragraph.</p>
   </header>
 
   <main>
@@ -42,7 +42,33 @@
       </div>
     </div>
 
-    <!-- Full keyboard layout (unchanged) -->
+    <!-- Switch settings panel -->
+    <div id="settingsPanel">
+      <div class="mode-toggle">
+        <label>
+          <input type="checkbox" id="modeCheckbox" disabled />
+          Sentence Mode
+        </label>
+      </div>
+      <div id="sentenceEditor" style="display: none;">
+        <div class="sentence-input-group">
+          <textarea id="sentenceText" rows="3" placeholder="Enter sentence here…" maxlength="63" disabled></textarea>
+          <div class="sentence-counter"><span id="charCount">0</span>/63</div>
+        </div>
+        <div class="sentence-controls">
+          <label class="auto-enter-toggle">
+            <input type="checkbox" id="autoEnterCheckbox" disabled />
+            Auto Enter
+          </label>
+          <button id="saveSentenceBtn" disabled>Save Sentence</button>
+        </div>
+      </div>
+      <div id="keyDisplay">
+        <span>Current key: <strong id="currentKeyLabel">No Device</strong></span>
+      </div>
+    </div>
+
+    <!-- Full keyboard layout -->
     <div id="keyboard">
       <!-- Row: Function keys -->
       <div class="row">
