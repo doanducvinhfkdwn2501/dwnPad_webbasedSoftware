@@ -3,24 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>dwnPad Key Changer</title>
+  <title>Arduino Key Changer – 4 Switches + SOCD + Debounce</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
-    <h1>dwnPad Key Changers</h1>
+    <h1>🖥️ Arduino Key Changer – 4 Switches</h1>
     <div class="controls">
-      <button id="connectBtn"> CONNECT</button>
+      <button id="connectBtn">🔌 Connect</button>
       <span id="status">Disconnected</span>
       <label class="socd-toggle">
         <input type="checkbox" id="socdCheckbox" disabled />
         <span class="slider"></span>
-        <span class="label-text">SOCD (last‑input) for Pin 2 & 3</span>
+        <span class="label-text">SOCD (last‑input) for Switches 1 & 2</span>
       </label>
       <div class="debounce-select">
         <label for="debounceSelect">Debounce:</label>
         <select id="debounceSelect" disabled>
           <option value="">Loading…</option>
+          <option value="5">0.5 ms</option>
           <option value="15">1.5 ms</option>
           <option value="30">3 ms</option>
           <option value="50">5 ms</option>

@@ -52,7 +52,6 @@ function highlightKey(keyName) {
 }
 
 function updateUIForSwitch(switchNum, keyName) {
-  // Only update the keyboard highlight if this switch is active
   if (switchNum === activeSwitch) {
     if (keyName) highlightKey(keyName);
     else clearKeySelection();
@@ -60,7 +59,6 @@ function updateUIForSwitch(switchNum, keyName) {
 }
 
 function updateAllUI() {
-  // Just clear highlights if no switch is active
   if (activeSwitch === null) {
     clearKeySelection();
   } else {
@@ -77,7 +75,7 @@ function updateSOCDUI(state) {
 
 // ---------- Debounce ----------
 function updateDebounceUI(value) {
-  const validValues = ['15', '30', '50'];
+  const validValues = ['5', '15', '30', '50'];   // added '5'
   const valStr = String(value);
   if (validValues.includes(valStr)) {
     debounceSelect.value = valStr;
@@ -203,10 +201,8 @@ connectBtn.addEventListener('click', async () => {
 
     writer = port.writable.getWriter();
 
-    // Start reading loop
     readLoop();
 
-    // Fetch global settings (SOCD and debounce) – no keys yet
     await sendRawCommand('GETSOCD');
     await sendRawCommand('GETDEBOUNCE');
   } catch (err) {
