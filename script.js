@@ -336,10 +336,7 @@ switchBtns.forEach(btn => {
       activeSwitch = null;
       clearKeySelection();
       if (currentKeyLabel) currentKeyLabel.textContent = 'select a key';
-      if (modeSelect) {
-        modeSelect.value = '';
-        modeSelect.disabled = true;
-      }
+      if (modeSelect) { modeSelect.value = ''; modeSelect.disabled = true; }
       if (sentenceEditor) sentenceEditor.style.display = 'none';
       if (macroManager) macroManager.style.display = 'none';
       if (presetLibrary) presetLibrary.style.display = 'none';
@@ -360,10 +357,7 @@ switchBtns.forEach(btn => {
     if (presetLibrary) presetLibrary.style.display = 'none';
     if (sentenceText) sentenceText.disabled = true;
     if (saveSentenceBtn) saveSentenceBtn.disabled = true;
-    if (modeSelect) {
-      modeSelect.disabled = true;
-      modeSelect.value = '';
-    }
+    if (modeSelect) { modeSelect.disabled = true; modeSelect.value = ''; }
     if (isConnected) {
       (async () => {
         try {
@@ -381,10 +375,7 @@ switchBtns.forEach(btn => {
       })();
     } else {
       clearKeySelection();
-      if (modeSelect) {
-        modeSelect.value = '';
-        modeSelect.disabled = true;
-      }
+      if (modeSelect) { modeSelect.value = ''; modeSelect.disabled = true; }
       if (sentenceText) sentenceText.value = '';
       if (charCountSpan) charCountSpan.textContent = '0';
       if (currentKeyLabel) currentKeyLabel.textContent = 'select a key';
@@ -405,6 +396,7 @@ let currentKeyNames = [null, null, null, null];
 let currentSentences = ['', '', '', ''];
 let currentModes = [0, 0, 0, 0];
 let currentAutoEnter = [false, false, false, false];
+let socdEnabled = false;
 
 function setCurrentKey(switchNum, keyName) {
   currentKeyNames[switchNum - 1] = keyName;
@@ -481,10 +473,7 @@ function updateUIForSwitch(switchNum) {
       currentKeyLabel.textContent = key || '-';
     }
 
-    if (modeSelect) {
-      modeSelect.value = mode;
-      modeSelect.disabled = false;
-    }
+    if (modeSelect) { modeSelect.value = mode; modeSelect.disabled = false; }
 
     if (sentenceText) sentenceText.value = sent || '';
     if (charCountSpan) charCountSpan.textContent = sent ? sent.length : 0;
@@ -531,10 +520,7 @@ function updateAllUI() {
   if (activeSwitch === null) {
     clearKeySelection();
     if (currentKeyLabel) currentKeyLabel.textContent = 'select a key';
-    if (modeSelect) {
-      modeSelect.value = '';
-      modeSelect.disabled = true;
-    }
+    if (modeSelect) { modeSelect.value = ''; modeSelect.disabled = true; }
     if (sentenceEditor) sentenceEditor.style.display = 'none';
     if (macroManager) macroManager.style.display = 'none';
     if (presetLibrary) presetLibrary.style.display = 'none';
@@ -550,6 +536,7 @@ function updateAllUI() {
 
 // ---------- SOCD ----------
 function updateSOCDUI(state) {
+  socdEnabled = state === true;
   if (socdCheckbox) socdCheckbox.checked = state === true;
 }
 
@@ -585,6 +572,7 @@ function handleDisconnect() {
   for (let i = 0; i < 4; i++) {
     currentKeyNames[i] = null; currentSentences[i] = ''; currentModes[i] = 0; currentAutoEnter[i] = false;
   }
+  socdEnabled = false;
   clearKeySelection();
   switchBtns.forEach(b => b.classList.remove('active'));
   activeSwitch = null;
@@ -688,7 +676,6 @@ connectBtn.addEventListener('click', async () => {
     writer = port.writable.getWriter();
     readLoop();
 
-    // Fetch global settings without resetting modes
     try {
       await sendRawCommand('GETSOCD');
       await sendRawCommand('GETDEBOUNCE');
@@ -698,14 +685,12 @@ connectBtn.addEventListener('click', async () => {
       alert('Some initial settings could not be loaded. Try reconnecting or refresh the page.');
     }
 
-    // If a switch was previously active, reload its data
     if (activeSwitch !== null) {
       await sendRawCommand('GET' + activeSwitch);
       await sendRawCommand('GETSENTENCE' + activeSwitch);
       await sendRawCommand('GETMODE' + activeSwitch);
       await sendRawCommand('GETAUTOENTER' + activeSwitch);
     }
-    // If the switch is in macro mode, show the macro manager
     if (activeSwitch !== null && currentModes[activeSwitch-1] === 2) {
       if (newProfileBtn) newProfileBtn.disabled = false;
       renderProfiles();
@@ -742,6 +727,7 @@ async function disconnect() {
   if (presetLibrary) presetLibrary.style.display = 'none';
   if (debounceSelect) debounceSelect.value = '';
   for (let i = 0; i < 4; i++) { currentKeyNames[i] = null; currentSentences[i] = ''; currentModes[i] = 0; currentAutoEnter[i] = false; }
+  socdEnabled = false;
   clearKeySelection();
   switchBtns.forEach(b => b.classList.remove('active'));
   activeSwitch = null;
@@ -776,14 +762,40 @@ async function sendRawCommand(cmd) {
   }
 }
 
+// ============ SOCD checkbox event – with mode check ============
+if (socdCheckbox) {
+  socdCheckbox.addEventListener('change', () => {
+    // If checkbox is being checked, verify both switches are in Key mode
+    if (socdCheckbox.checked) {
+      const mode1 = currentModes[0]; // switch 1 (pin 3)
+      const mode2 = currentModes[1]; // switch 2 (pin 2)
+      if (mode1 !== 0 || mode2 !== 0) {
+        alert('SOCD can only be enabled when both Switch 1 (pin 3) and Switch 2 (pin 2) are in Single Key mode.\nPlease set both switches to Key mode first.');
+        socdCheckbox.checked = false;
+        return;
+      }
+    }
+    // Proceed to send command
+    if (isConnected) {
+      setSOCD(socdCheckbox.checked);
+    } else {
+      localStorage.setItem('socdState', socdCheckbox.checked ? '1' : '0');
+    }
+  });
+}
+
 // ============ Mode drop-down ============
 if (modeSelect) {
   modeSelect.addEventListener('change', () => {
-    // If the placeholder value is selected, ignore
     if (modeSelect.value === '') return;
     const mode = parseInt(modeSelect.value);
-    // Only act if a switch is selected and connected
     if (isConnected && activeSwitch !== null) {
+      // If setting mode to Sentence (1) or Macro (2) on switch 1 or 2, also disable SOCD
+      const sw = activeSwitch;
+      if ((sw === 1 || sw === 2) && (mode === 1 || mode === 2)) {
+        // Disable SOCD on the Arduino and uncheck the UI
+        setSOCD(false);
+      }
       setCurrentMode(activeSwitch, mode);
       updateUIForSwitch(activeSwitch);
       setModeForSwitch(activeSwitch, mode).catch(e => {
@@ -791,8 +803,7 @@ if (modeSelect) {
         alert('Could not change mode on the device. The UI is updated, but the device may still be in the previous mode.');
       });
     }
-    // If no switch selected, update the UI to show the appropriate panels? Actually we can't change switch mode without a switch.
-    // But we can show macro manager if mode is 2 regardless of switch, as before.
+    // Show macro manager if mode is 2 regardless of switch
     if (mode === 2) {
       if (macroManager) macroManager.style.display = 'block';
       if (presetLibrary) presetLibrary.style.display = 'block';
@@ -1092,12 +1103,6 @@ document.querySelectorAll('.key[data-key]').forEach(el => {
 });
 
 // ============ SOCD, Debounce, AutoEnter, Sentence Save ============
-if (socdCheckbox) {
-  socdCheckbox.addEventListener('change', () => {
-    if (isConnected) setSOCD(socdCheckbox.checked);
-    else localStorage.setItem('socdState', socdCheckbox.checked ? '1' : '0');
-  });
-}
 if (debounceSelect) {
   debounceSelect.addEventListener('change', () => {
     const val = debounceSelect.value;
@@ -1130,6 +1135,7 @@ loadProfiles();
 clearKeySelection();
 switchBtns.forEach(b => b.classList.remove('active'));
 activeSwitch = null;
+socdEnabled = false;
 if (socdCheckbox) socdCheckbox.disabled = true;
 if (debounceSelect) { debounceSelect.disabled = true; debounceSelect.value = ''; }
 if (modeSelect) { modeSelect.disabled = true; modeSelect.value = ''; }
