@@ -142,22 +142,25 @@ header h1 {
   color: #888;
 }
 
-/* ========== INTERACTIVE AREA LOCK (disconnected state) ========== */
+/* ===== INTERACTIVE AREA LOCK ===== */
 #interactive-area.locked .switch-btn,
 #interactive-area.locked .key,
-#interactive-area.locked .mode-toggle input,
-#interactive-area.locked .auto-enter-toggle input,
-#interactive-area.locked .socd-toggle input,
-#interactive-area.locked .debounce-select select,
+#interactive-area.locked .mode-selector select,
 #interactive-area.locked #saveSentenceBtn,
 #interactive-area.locked #sentenceText,
-#interactive-area.locked .sentence-counter {
+#interactive-area.locked .auto-enter-toggle input,
+#interactive-area.locked .sentence-counter,
+#interactive-area.locked .macro-actions button,
+#interactive-area.locked #profileList,
+#interactive-area.locked #macroPreview,
+#interactive-area.locked #presetList,
+#interactive-area.locked #presetSearch,
+#interactive-area.locked .preset-tag {
   pointer-events: none !important;
   opacity: 0.5 !important;
   cursor: not-allowed !important;
   user-select: none !important;
 }
-/* Exclude the connect button and header from locking */
 .controls,
 header,
 .info {
@@ -223,24 +226,25 @@ header,
   gap: 20px;
   justify-content: center;
   border: 1px solid #444;
+  width: 100%;
+  max-width: 1100px;
 }
-#settingsPanel .mode-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #ccc;
-  font-size: 1rem;
-}
-#settingsPanel .mode-toggle input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: #ffd700;
+
+.mode-selector select {
+  background: #3a3a5c;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.9rem;
   cursor: pointer;
 }
-#settingsPanel .mode-toggle input[type="checkbox"]:disabled {
+.mode-selector select:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Sentence Editor */
 #sentenceEditor {
   display: flex;
   flex-wrap: wrap;
@@ -317,6 +321,185 @@ header,
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ===== MACRO MANAGER ===== */
+#macroManager {
+  flex: 1;
+  min-width: 200px;
+  background: #1e1e2f;
+  border-radius: 6px;
+  padding: 8px 12px;
+  border: 1px solid #444;
+}
+.macro-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+  color: #ccc;
+}
+.macro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.macro-actions button {
+  background: #3a3a5c;
+  color: #fff;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+.macro-actions button:hover:not(:disabled) {
+  background: #4e4e7a;
+}
+.macro-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.macro-actions button.recording {
+  background: #d9534f;
+}
+.macro-actions button.recording:hover:not(:disabled) {
+  background: #c9302c;
+}
+
+#profileList {
+  max-height: 100px;
+  overflow-y: auto;
+  margin: 4px 0;
+}
+#profileList::-webkit-scrollbar {
+  width: 4px;
+}
+#profileList::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 2px;
+}
+.profile-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.2s;
+}
+.profile-item:hover {
+  background: #2a2a3f;
+}
+.profile-item.selected {
+  background: #3a3a5c;
+  outline: 1px solid #ffd700;
+}
+.profile-item .name {
+  color: #eee;
+}
+.profile-item .count {
+  color: #888;
+  font-size: 0.75rem;
+}
+.profile-empty {
+  color: #666;
+  font-style: italic;
+  padding: 6px 0;
+  text-align: center;
+  font-size: 0.85rem;
+}
+#recordingStatus {
+  color: #ffd700;
+  font-size: 0.85rem;
+}
+#macroPreview {
+  color: #aaa;
+  font-size: 0.8rem;
+  font-family: monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ===== PRESET LIBRARY ===== */
+#presetLibrary {
+  width: 100%;
+  margin-top: 10px;
+  border-top: 1px solid #444;
+  padding-top: 10px;
+}
+
+.preset-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: #ccc;
+}
+
+#presetSearch {
+  background: #1e1e2f;
+  color: #eee;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  width: 150px;
+}
+#presetSearch:focus {
+  outline: none;
+  border-color: #ffd700;
+}
+
+#presetList {
+  max-height: 150px;
+  overflow-y: auto;
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+#presetList::-webkit-scrollbar {
+  width: 4px;
+}
+#presetList::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 2px;
+}
+
+.preset-tag {
+  background: #2a2a3f;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: #ccc;
+  transition: background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+.preset-tag:hover {
+  background: #3a3a5c;
+  border-color: #ffd700;
+}
+.preset-tag .category {
+  color: #888;
+  font-size: 0.65rem;
+  margin-right: 4px;
+}
+.preset-tag.selected {
+  background: #ffd700;
+  color: #1e1e2f;
+  border-color: #ffd700;
+}
+
+/* Key display */
 #keyDisplay {
   font-size: 1rem;
   color: #ccc;
@@ -324,6 +507,12 @@ header,
 }
 #keyDisplay strong {
   color: #ffd700;
+}
+
+/* Key display dimming */
+#keyDisplay.dimmed-label {
+  opacity: 0.4;
+  transition: opacity 0.3s ease;
 }
 
 /* Keyboard layout */
@@ -339,7 +528,7 @@ header,
   transition: opacity 0.3s ease;
 }
 
-/* Keyboard dimming for sentence mode */
+/* Keyboard dimming for sentence or macro mode */
 #keyboard.dimmed {
   opacity: 0.4;
   pointer-events: none;
@@ -349,9 +538,6 @@ header,
 }
 #keyboard .dim-overlay {
   display: none;
-}
-#keyboard.dimmed .dim-overlay {
-  display: block;
   position: absolute;
   top: 0;
   left: 0;
@@ -359,31 +545,27 @@ header,
   bottom: 0;
   z-index: 10;
   pointer-events: none;
-}
-#keyboard.dimmed .dim-overlay::after {
-  content: "Sentence Mode Active - Click keys to assign a sentence";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  align-items: center;
+  justify-content: center;
   color: #ffd700;
   font-size: 1.2rem;
   font-weight: bold;
   text-shadow: 0 0 20px rgba(0,0,0,0.8);
   background: rgba(30,30,47,0.85);
-  padding: 20px 30px;
-  border-radius: 10px;
   border: 2px solid #ffd700;
+  border-radius: 10px;
+  margin: 20px;
   text-align: center;
-  pointer-events: none;
-  white-space: nowrap;
+  padding: 20px 30px;
+}
+#keyboard.dimmed .dim-overlay {
+  display: flex;
 }
 @media (max-width: 600px) {
-  #keyboard.dimmed .dim-overlay::after {
+  #keyboard.dimmed .dim-overlay {
     font-size: 0.7rem;
     padding: 10px 15px;
-    white-space: normal;
-    width: 80%;
+    margin: 10px;
   }
 }
 
@@ -472,6 +654,7 @@ header,
     flex: 1 1 40px;
   }
 }
+
 @media (max-width: 600px) {
   .key {
     font-size: 0.6rem;
@@ -492,5 +675,30 @@ header,
     width: 60px;
     height: 60px;
     font-size: 0.8rem;
+  }
+  #settingsPanel {
+    padding: 10px 15px;
+    gap: 10px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .preset-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  #presetSearch {
+    width: 100%;
+  }
+  .macro-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .macro-actions {
+    justify-content: center;
+  }
+  #keyDisplay {
+    text-align: center;
+    margin-left: 0;
   }
 }
