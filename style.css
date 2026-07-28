@@ -142,6 +142,28 @@ header h1 {
   color: #888;
 }
 
+/* ========== INTERACTIVE AREA LOCK (disconnected state) ========== */
+#interactive-area.locked .switch-btn,
+#interactive-area.locked .key,
+#interactive-area.locked .mode-toggle input,
+#interactive-area.locked .auto-enter-toggle input,
+#interactive-area.locked .socd-toggle input,
+#interactive-area.locked .debounce-select select,
+#interactive-area.locked #saveSentenceBtn,
+#interactive-area.locked #sentenceText,
+#interactive-area.locked .sentence-counter {
+  pointer-events: none !important;
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  user-select: none !important;
+}
+/* Exclude the connect button and header from locking */
+.controls,
+header,
+.info {
+  pointer-events: auto !important;
+}
+
 /* Switch selector – diamond layout */
 #switchSelector {
   display: flex;
@@ -313,6 +335,56 @@ header h1 {
   max-width: 1100px;
   width: 100%;
   margin: 0 auto;
+  position: relative;
+  transition: opacity 0.3s ease;
+}
+
+/* Keyboard dimming for sentence mode */
+#keyboard.dimmed {
+  opacity: 0.4;
+  pointer-events: none;
+}
+#keyboard.dimmed .key {
+  cursor: not-allowed;
+}
+#keyboard .dim-overlay {
+  display: none;
+}
+#keyboard.dimmed .dim-overlay {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+#keyboard.dimmed .dim-overlay::after {
+  content: "Sentence Mode Active - Click keys to assign a sentence";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ffd700;
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-shadow: 0 0 20px rgba(0,0,0,0.8);
+  background: rgba(30,30,47,0.85);
+  padding: 20px 30px;
+  border-radius: 10px;
+  border: 2px solid #ffd700;
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  #keyboard.dimmed .dim-overlay::after {
+    font-size: 0.7rem;
+    padding: 10px 15px;
+    white-space: normal;
+    width: 80%;
+  }
 }
 
 .row {
@@ -339,7 +411,6 @@ header h1 {
   box-shadow: 0 2px 4px rgba(0,0,0,0.3);
   border: 1px solid #555577;
 }
-
 .key:hover {
   background: #5a5a82;
   transform: scale(1.02);
@@ -348,7 +419,6 @@ header h1 {
   background: #7a7a9a;
   transform: scale(0.95);
 }
-
 .key.special {
   background: #4a4a6a;
   font-size: 0.8rem;
@@ -369,7 +439,6 @@ header h1 {
   outline: 3px solid #ffd700;
   outline-offset: 2px;
 }
-
 .symbols-row .key {
   font-size: 0.8rem;
   min-width: 36px;

@@ -16,16 +16,50 @@ const saveSentenceBtn = document.getElementById('saveSentenceBtn');
 const currentKeyLabel = document.getElementById('currentKeyLabel');
 const sentenceEditor = document.getElementById('sentenceEditor');
 const charCountSpan = document.getElementById('charCount');
+const interactiveArea = document.getElementById('interactive-area');
 
-// ============ Switch selection ============
+// ============ Lock / Unlock interactive area ============
+function lockInteractive(locked) {
+  if (locked) {
+    interactiveArea.classList.add('locked');
+  } else {
+    interactiveArea.classList.remove('locked');
+  }
+}
+
+// ============ Switch selection with toggle deselect ============
 let activeSwitch = null;
 let isLoading = false;
 const switchBtns = document.querySelectorAll('.switch-btn');
 switchBtns.forEach(btn => {
   btn.addEventListener('click', () => {
+    // If not connected, ignore the click (UI is locked anyway, but safety)
+    if (!isConnected) return;
+
+    const sw = parseInt(btn.dataset.switch);
+
+    // If clicking the already active switch, deselect it
+    if (activeSwitch === sw) {
+      // Deselect
+      btn.classList.remove('active');
+      activeSwitch = null;
+      clearKeySelection();
+      currentKeyLabel.textContent = 'select a key';
+      modeCheckbox.checked = false;
+      modeCheckbox.disabled = true;
+      autoEnterCheckbox.checked = false;
+      autoEnterCheckbox.disabled = true;
+      sentenceEditor.style.display = 'none';
+      sentenceText.disabled = true;
+      saveSentenceBtn.disabled = true;
+      charCountSpan.textContent = '0';
+      dimKeyboard(false);
+      return;
+    }
+
+    // Otherwise select the new switch
     switchBtns.forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    const sw = parseInt(btn.dataset.switch);
     activeSwitch = sw;
     isLoading = true;
     currentKeyLabel.textContent = 'Loading...';
@@ -45,7 +79,8 @@ switchBtns.forEach(btn => {
       autoEnterCheckbox.checked = false;
       sentenceText.value = '';
       charCountSpan.textContent = '0';
-      currentKeyLabel.textContent = 'No Device';
+      currentKeyLabel.textContent = 'select a key';
+      dimKeyboard(false);
       isLoading = false;
     }
   });
@@ -87,22 +122,34 @@ function highlightKey(keyName) {
   });
 }
 
+// ---------- Keyboard dimming ----------
+function dimKeyboard(dimmed) {
+  const keyboard = document.getElementById('keyboard');
+  if (dimmed) {
+    keyboard.classList.add('dimmed');
+  } else {
+    keyboard.classList.remove('dimmed');
+  }
+}
+
 function updateUIForSwitch(switchNum) {
   if (switchNum === activeSwitch) {
     const key = getCurrentKey(switchNum);
     const mode = currentModes[switchNum - 1];
     const sent = currentSentences[switchNum - 1];
     const autoEnter = currentAutoEnter[switchNum - 1];
-    
+
     currentKeyLabel.textContent = key || '-';
     modeCheckbox.checked = mode;
     modeCheckbox.disabled = false;
     autoEnterCheckbox.checked = autoEnter;
     autoEnterCheckbox.disabled = false;
-    
+
     sentenceText.value = sent || '';
     charCountSpan.textContent = sent ? sent.length : 0;
-    
+
+    dimKeyboard(mode);
+
     if (mode) {
       sentenceEditor.style.display = 'flex';
       sentenceText.disabled = false;
@@ -114,7 +161,7 @@ function updateUIForSwitch(switchNum) {
       saveSentenceBtn.disabled = true;
       autoEnterCheckbox.disabled = true;
     }
-    
+
     if (!mode && key) {
       highlightKey(key);
     } else {
@@ -127,7 +174,7 @@ function updateUIForSwitch(switchNum) {
 function updateAllUI() {
   if (activeSwitch === null) {
     clearKeySelection();
-    currentKeyLabel.textContent = 'No Device';
+    currentKeyLabel.textContent = 'select a key';
     modeCheckbox.checked = false;
     modeCheckbox.disabled = true;
     autoEnterCheckbox.checked = false;
@@ -136,6 +183,7 @@ function updateAllUI() {
     sentenceText.disabled = true;
     saveSentenceBtn.disabled = true;
     charCountSpan.textContent = '0';
+    dimKeyboard(false);
     return;
   }
   updateUIForSwitch(activeSwitch);
@@ -187,8 +235,10 @@ function handleDisconnect() {
   switchBtns.forEach(b => b.classList.remove('active'));
   activeSwitch = null;
   updateSOCDUI(false);
-  currentKeyLabel.textContent = 'No Device';
+  currentKeyLabel.textContent = 'No device';
   charCountSpan.textContent = '0';
+  dimKeyboard(false);
+  lockInteractive(true); // <-- LOCK UI
   if (reader) {
     try { reader.releaseLock(); } catch(e) {}
     reader = null;
@@ -332,8 +382,10 @@ connectBtn.addEventListener('click', async () => {
     sentenceText.disabled = true;
     saveSentenceBtn.disabled = true;
     sentenceEditor.style.display = 'none';
-    currentKeyLabel.textContent = 'No Device';
+    currentKeyLabel.textContent = 'select a key';
     charCountSpan.textContent = '0';
+    dimKeyboard(false);
+    lockInteractive(false); // <-- UNLOCK UI
 
     port.addEventListener('disconnect', handleDisconnect);
 
@@ -392,9 +444,11 @@ async function disconnect() {
   clearKeySelection();
   switchBtns.forEach(b => b.classList.remove('active'));
   activeSwitch = null;
-  currentKeyLabel.textContent = 'No Device';
+  currentKeyLabel.textContent = 'No device';
   charCountSpan.textContent = '0';
   updateSOCDUI(false);
+  dimKeyboard(false);
+  lockInteractive(true); // <-- LOCK UI
 }
 
 // ============ Sending commands ============
@@ -514,6 +568,9 @@ async function setDebounce(value) {
 // ============ Keyboard UI ============
 document.querySelectorAll('.key[data-key]').forEach(el => {
   el.addEventListener('click', () => {
+    // If not connected, ignore the click (UI is locked anyway, but safety)
+    if (!isConnected) return;
+
     const key = el.dataset.key;
     if (isConnected) {
       if (activeSwitch === null) {
@@ -605,6 +662,8 @@ sentenceText.disabled = true;
 saveSentenceBtn.disabled = true;
 sentenceEditor.style.display = 'none';
 debounceSelect.value = '';
-currentKeyLabel.textContent = 'No Device';
+currentKeyLabel.textContent = 'No device';
 charCountSpan.textContent = '0';
+dimKeyboard(false);
+lockInteractive(true); // <-- LOCK UI ON LOAD
 console.log('dwnPad Key Changer ready.');
